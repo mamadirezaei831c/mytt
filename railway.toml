@@ -1,0 +1,14 @@
+[build]
+  builder = "dockerfile"
+  dockerfilePath = "Dockerfile"
+
+[deploy]
+  restartPolicyType = "always"
+
+[deploy.ports]
+  # web panel -> public HTTPS domain (https://xxx.up.railway.app)
+  [deploy.ports.2053]
+    protocol = "http"
+  # proxy traffic -> TCP proxy domain:port (random external port)
+  [deploy.ports.443]
+    protocol = "tcp"
