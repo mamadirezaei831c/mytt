@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>اسکنر مقصد ریلیتی</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="card wide">
+    <a class="back" href="./">→ بازگشت به صفحهٔ اصلی</a>
+    <h1>🛰️ اسکنر مقصد ریلیتی</h1>
+    <p class="sub">
+      دسترسی و تأخیر هر سایت را از <b>شبکهٔ خودتان</b> اندازه می‌گیرد — همان شبکه‌ای که
+      اتصال شما را فیلتر یا محدود می‌کند. این تست یک TLS واقعی از مرورگر انجام می‌دهد؛
+      برای چک کامل <code>TLS 1.3 + X25519</code> از اسکریپت <code>reality-scan.sh</code>
+      در ترمینال استفاده کنید.
+    </p>
+
+    <label for="list">دامنه‌ها (یکی در هر خط، <code>#</code> برای کامنت):</label>
+    <textarea id="list" spellcheck="false">www.wikipedia.org
+github.com
+www.bbc.com
+www.bing.com
+www.google.com
+www.cloudflare.com
+cdn.jsdelivr.net
+www.digikala.com
+www.aparat.com
+www.irna.ir
+www.radiofarda.com
+www.telegram.org</textarea>
+
+    <div class="actions">
+      <button id="run" class="btn primary">شروع اسکن</button>
+      <button id="stop" class="btn" disabled>توقف</button>
+    </div>
+
+    <div id="progress"></div>
+    <table class="results">
+      <thead>
+        <tr><th>دامنه</th><th>وضعیت</th><th>تأخیر</th></tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <p id="note"></p>
+  </main>
+
+  <script>
+    (function () {
+      "use strict";
+      var CONC = 6, TIMEOUT = 8000;
+      var $ = function (id) { return document.getElementById(id); };
+      var running = false;
+
+      function probe(domain) {
+        return new Promise(function (resolve) {
+          var ctrl = new AbortController();
+          var timer = setTimeout(function () { ctrl.abort(); }, TIMEOUT);
+          var t0 = performance.now();
+          fetch("https://" + domain + "/", {
+            mode: "no-cors",
+            cache: "no-store",
+            signal: ctrl.signal
+          }).then(function () {
+            clearTimeout(timer);
+            resolve({ domain: domain, ok: true, ms: Math.round(performance.now() - t0) });
+          }).catch(function (e) {
+            clearTimeout(timer);
+            var timedOut = !!(e && e.name === "AbortError");
+            resolve({
+              domain: domain,
+              ok: false,
+              ms: timedOut ? TIMEOUT : Math.round(performance.now() - t0)
+            });
+          });
+        });
+      }
+
+      function render(results, done, total) {
+        var rows = results.slice().sort(function (a, b) {
+          if (a.ok !== b.ok) return a.ok ? -1 : 1;
+          return a.ms - b.ms;
+        });
+        var tbody = $("tbody");
+        tbody.innerHTML = "";
+        rows.forEach(function (r) {
+          var tr = document.createElement("tr");
+          tr.className = r.ok ? "ok" : "bad";
+          var status = r.ok ? "✅ در دسترس" : "❌ ناموفق";
+          var ms = r.ok ? r.ms + " ms" : (r.ms >= TIMEOUT ? "تایم‌اوت" : r.ms + " ms");
+          tr.innerHTML = "<td>" + r.domain + "</td><td>" + status + "</td><td>" + ms + "</td>";
+          tbody.appendChild(tr);
+        });
+        $("progress").textContent = "پایان — " + done + " از " + total + " دامنه";
+      }
+
+      function finish(results, done, total) {
+        running = false;
+        $("run").disabled = false;
+        $("stop").disabled = true;
+        render(results, done, total);
+        $("note").textContent =
+          "نکته: «ناموفق» یعنی از شبکهٔ شما خطای DNS / TCP / TLS (یا مسدودبودن) دریافت شد. " +
+          "برای چک کامل TLS 1.3 + X25519 (شرط اصلی هندشیک ریلیتی) اسکریپت reality-scan.sh را اجرا کنید.";
+      }
+
+      function run() {
+        var domains = $("list").value.split("\n")
+          .map(function (s) { return s.trim().replace(/\s+/g, ""); })
+          .filter(function (s) { return s && s.indexOf("#") !== 0; });
+        if (!domains.length) return;
+
+        var seen = {}, unique = [];
+        domains.forEach(function (d) { if (!seen[d]) { seen[d] = true; unique.push(d); } });
+        domains = unique;
+
+        running = true;
+        $("run").disabled = true;
+        $("stop").disabled = false;
+        $("note").textContent = "";
+        $("tbody").innerHTML = "";
+        $("progress").textContent = "در حال اسکن… 0/" + domains.length;
+
+        var results = [], next = 0, active = 0, done = 0, stopped = false;
+
+        function launch() {
+          while (!stopped && active < CONC && next < domains.length) {
+            var d = domains[next++];
+            active++;
+            probe(d).then(function (r) {
+              active--;
+              done++;
+              results.push(r);
+              if (!stopped) {
+                $("progress").textContent = "در حال اسکن… " + done + "/" + domains.length;
+                if (next < domains.length) launch();
+                else if (active === 0) finish(results, done, domains.length);
+              } else {
+                if (active === 0) finish(results, done, domains.length);
+              }
+            });
+          }
+        }
+
+        $("stop").onclick = function () {
+          stopped = true;
+          $("stop").disabled = true;
+          $("progress").textContent = "متوقف شد — " + done + "/" + domains.length;
+          if (active === 0) finish(results, done, domains.length);
+        };
+
+        launch();
+      }
+
+      $("run").addEventListener("click", run);
+    })();
+  </script>
+</body>
+</html>

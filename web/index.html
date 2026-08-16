@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>پنل شما</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="card">
+    <div class="logo">🛰️</div>
+    <h1 id="title">پنل پروکسی شما</h1>
+    <p class="sub">
+      برای شخصی‌سازی این صفحه، فایل‌های <code>web/index.html</code> و <code>web/style.css</code>
+      را ویرایش کنید و دوباره دیپلوی بگیرید.
+    </p>
+
+    <div class="actions">
+      <a id="panel-link" class="btn primary" href="#">ورود به پنل ←</a>
+      <a class="btn" href="scan.html">🛰️ اسکنر مقصد ریلیتی</a>
+    </div>
+
+    <div class="info">
+      <div><span>لوکیشن:</span> <b id="loc">—</b></div>
+      <div><span>آدرس پنل:</span> <b id="panel-url">—</b></div>
+      <div><span>پروکسی (برای کلاینت):</span> <b id="proxy">—</b></div>
+    </div>
+
+    <footer>
+      ساخته‌شده با ❤️ &nbsp;·&nbsp; اسکنر کامل خط فرمان: <code>reality-scan.sh</code>
+    </footer>
+  </main>
+
+  <script src="config.js"></script>
+  <script>
+    (function () {
+      var p = (typeof window.PANEL === "object") ? window.PANEL : {};
+      var path = p.path || "/";
+      var url  = p.url  || path;
+      document.getElementById("panel-link").setAttribute("href", url);
+      document.getElementById("loc").textContent       = p.location || "—";
+      document.getElementById("panel-url").textContent = p.url      || "—";
+      document.getElementById("proxy").textContent     = p.proxy    || "—";
+    })();
+  </script>
+</body>
+</html>

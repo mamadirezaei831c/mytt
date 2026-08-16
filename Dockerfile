@@ -7,6 +7,7 @@ RUN apk add --no-cache \
     socat \
     tzdata \
     sqlite \
+    nginx \
     && ln -sf /usr/share/zoneinfo/Asia/Tehran /etc/localtime
 
 # fetch & unpack (URL kept encoded)
@@ -19,9 +20,12 @@ RUN N="$(printf '%s' 'eC11aQ==' | base64 -d)" \
     && rm /tmp/app.tar.gz \
     && chmod +x "/opt/app/${N}"
 
+# custom UI (landing page + browser reality scanner)
+COPY web /srv/web
+
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
 
-EXPOSE 2053
+EXPOSE 2053 443
 
 CMD ["/start.sh"]
